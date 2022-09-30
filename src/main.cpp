@@ -10,15 +10,14 @@ class cUniversity
 {
 public:
     int mySlotCount;
-    int mySlotFilledCount;
+    // int mySlotFilledCount;
     std::vector<bool> myEligibleStudent;
+    std::vector<int> myAssigned;
     int myPopularity; // number of eligible studemts
 
-    cUniversity()
-        : mySlotFilledCount(0)
-    {
-    }
     bool isfeasible();
+    bool isRoom();
+    bool isEligible(int s);
 };
 
 // https://stackoverflow.com/q/73903345
@@ -30,9 +29,12 @@ public:
     void file();
     bool isfeasible();
     void AssignStudent2LeastPopular();
+    void makeRoom();
+    int studentCount();
 
 private:
     std::vector<cUniversity> myUniversity;
+    std::vector<int> myUnassigned;
 };
 
 bool cUniversity::isfeasible()
@@ -44,6 +46,18 @@ bool cUniversity::isfeasible()
     if (myPopularity < mySlotCount)
         return false;
     return true;
+}
+
+bool cUniversity::isRoom()
+{
+    return (mySlotCount > myAssigned.size());
+}
+bool cUniversity::isEligible(int s)
+{
+    return (std::find(
+                myEligibleStudent.begin(),
+                myEligibleStudent.end(),
+                s) != myEligibleStudent.end());
 }
 
 void cSolution::generate()
@@ -95,34 +109,140 @@ void cSolution::AssignStudent2LeastPopular()
     //     std::cout << u.myPopularity << " ";
     // std::cout << "\n";
 
+    myUnassigned.clear();
     int unassignedCount = 0;
     for (int s = 0; s < myUniversity[0].myEligibleStudent.size(); s++)
     {
         bool assigned = false;
         for (auto &u : myUniversity)
         {
-            if (u.myEligibleStudent[s] && (u.mySlotCount > u.mySlotFilledCount))
+            if (u.myEligibleStudent[s] && u.isRoom())
             {
                 // assign student
-                u.mySlotFilledCount++;
+                u.myAssigned.push_back(s);
                 assigned = true;
                 break;
             }
         }
-        if( ! assigned ) {
-            unassignedCount++;
-            std::cout << "student " << s << " cannot be assigned\n";
+        if (!assigned)
+        {
+            myUnassigned.push_back(s);
         }
     }
-    std::cout << unassignedCount << " students could not be assigned\n";
+
+    if (myUnassigned.size())
+    {
+        std::cout << myUnassigned.size() << " of " << myUniversity[0].myEligibleStudent.size()
+                  << " students could not be assigned by hueristic\n";
+        for (auto &u : myUniversity)
+        {
+            std::cout << u.mySlotCount << " slots filled with ";
+            for (int s : u.myAssigned)
+                std::cout << s << " ";
+            std::cout << "\n";
+        }
+    }
+}
+
+void cSolution::makeRoom()
+{
+    if (!myUnassigned.size())
+        return;
+    bool froom = false;
+    for (auto &u : myUniversity)
+    {
+        if (u.isRoom())
+        {
+            froom = true;
+            break;
+        }
+    }
+    if (!froom)
+    {
+        std::cout << "no room anywhere\n";
+        return;
+    }
+    for (auto s : myUnassigned)
+    {
+        bool success = false;
+        for (auto &u : myUniversity)
+        {
+            if (u.isEligible(s))
+            {
+                // find a moveable student
+                for (int m : u.myAssigned)
+                {
+                    for (auto &u2 : myUniversity)
+                    {
+                        if (u2.isRoom() &&
+                            u2.isEligible(m) )
+                        {
+                            // student m can be moved from u to u2
+                            u.myAssigned.erase(
+                                std::find(
+                                    u.myAssigned.begin(),
+                                    u.myAssigned.end(),
+                                    m));
+                            u2.myAssigned.push_back(m);
+
+                            // replace m with s
+                            u.myAssigned.push_back(s);
+
+                            success = true;
+                            std::cout << "student " << s << " assigned\n";
+                            break;
+                        }
+                    }
+                    if (success)
+                        break;
+                }
+            }
+            if (success)
+                break;
+        }
+        if (!success)
+        {
+            std::cout << "cannot find a place for student " << s
+                      << " who is eligible for ";
+            for (int k = 0; k < myUniversity.size(); k++)
+                if (myUniversity[k].isEligible(s))
+                    std::cout << k << " ";
+            std::cout << "\n";
+        }
+        else
+        {
+            std::cout << "student " << s << " assigned\n";
+        }
+    }
 }
 
 bool cSolution::isfeasible()
 {
+    int totalSlotCount = 0;
     for (auto &u : myUniversity)
+    {
         if (!u.isfeasible())
+        {
+            std::cout << "not enough eligible students for a university's slots";
             return false;
+        }
+        totalSlotCount += u.mySlotCount;
+    }
+    if (studentCount() < totalSlotCount)
+    {
+        std::cout << "not enough students to fill all the university slots\n";
+        return false;
+    }
+
     return true;
+}
+
+int cSolution::studentCount()
+{
+    if (!myUniversity.size())
+        return 0;
+    int dbg = myUniversity[0].myEligibleStudent.size();
+    return myUniversity[0].myEligibleStudent.size();
 }
 
 main()
@@ -137,6 +257,7 @@ main()
         return 1;
     }
     S.AssignStudent2LeastPopular();
+    S.makeRoom();
 
     return 0;
 }
