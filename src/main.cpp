@@ -54,30 +54,30 @@ bool cUniversity::isRoom()
 }
 bool cUniversity::isEligible(int s)
 {
-    return (std::find(
-                myEligibleStudent.begin(),
-                myEligibleStudent.end(),
-                s) != myEligibleStudent.end());
+    return myEligibleStudent[s];
 }
 
 void cSolution::generate()
 {
     int uniCount = 3;
-    int studCount = 20;
-    int eligProb = 70;
+    int studCount = 50;
+    int eligProb = 50;
+    int avSlot = 15;
 
     srand(time(NULL));
 
     myUniversity.resize(uniCount);
     for (auto &u : myUniversity)
     {
-        u.mySlotCount = rand() % 10 + 1;
+        // university has avSlot +/- 5
+        u.mySlotCount = avSlot - 5 + rand() % 10 + 1;
+        
         u.myEligibleStudent.resize(studCount, false);
-        for (int s = 0; s < studCount; s++)
-        {
-            if (rand() % 100 < eligProb)
-                u.myEligibleStudent[s] = true;
-        }
+    }
+    for (int s = 0; s < studCount; s++)
+    {
+        myUniversity[rand()%uniCount].myEligibleStudent[s] = true;
+        myUniversity[rand()%uniCount].myEligibleStudent[s] = true;
     }
 }
 void cSolution::file()
@@ -132,8 +132,8 @@ void cSolution::AssignStudent2LeastPopular()
 
     if (myUnassigned.size())
     {
-        std::cout << myUnassigned.size() << " of " << myUniversity[0].myEligibleStudent.size()
-                  << " students could not be assigned by hueristic\n";
+        std::cout << studentCount() - myUnassigned.size() << " of " << studentCount()
+                  << " students assigned by hueristic\n";
         for (auto &u : myUniversity)
         {
             std::cout << u.mySlotCount << " slots filled with ";
@@ -159,7 +159,7 @@ void cSolution::makeRoom()
     }
     if (!froom)
     {
-        std::cout << "no room anywhere\n";
+        std::cout << "All slots filled\n";
         return;
     }
     for (auto s : myUnassigned)
@@ -175,7 +175,7 @@ void cSolution::makeRoom()
                     for (auto &u2 : myUniversity)
                     {
                         if (u2.isRoom() &&
-                            u2.isEligible(m) )
+                            u2.isEligible(m))
                         {
                             // student m can be moved from u to u2
                             u.myAssigned.erase(
@@ -223,7 +223,7 @@ bool cSolution::isfeasible()
     {
         if (!u.isfeasible())
         {
-            std::cout << "not enough eligible students for a university's slots";
+            std::cout << "not enough eligible students for a university's slots\n";
             return false;
         }
         totalSlotCount += u.mySlotCount;
@@ -257,6 +257,7 @@ main()
         return 1;
     }
     S.AssignStudent2LeastPopular();
+
     S.makeRoom();
 
     return 0;
