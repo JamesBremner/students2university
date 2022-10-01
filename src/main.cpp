@@ -5,6 +5,7 @@
 #include <vector>
 #include <algorithm>
 #include <time.h> /* time */
+#include "cRunWatch.h"
 
 class cUniversity
 {
@@ -61,7 +62,7 @@ bool cUniversity::isEligible(int s)
 void cSolution::generate()
 {
     int uniCount = 5;
-    int avSlot = 500;
+    int avSlot = 5000;
 
     // create enough students to usually fill all the slots
     int studCount = avSlot * uniCount * 1.0;
@@ -264,6 +265,10 @@ main()
     cSolution S;
     S.generate();
     S.file();
+
+    raven::set::cRunWatch::Start();
+    {
+        raven::set::cRunWatch aWatcher("Assign");
     if (!S.isfeasible())
     {
         std::cout << "Not feasible\n";
@@ -275,6 +280,10 @@ main()
 
     if( ! S.isRoom() )
         std::cout << "SUCCESS - all slots filled\n";
+
+    }
+
+    raven::set::cRunWatch::Report();
 
     return 0;
 }

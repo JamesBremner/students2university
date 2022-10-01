@@ -19,16 +19,21 @@ static_link_flags = -static-libstdc++ -static-libgcc -static
 
 # folders
 ODIR = ./.vscode/obj
-RDIR = ../ravencode/pub/src
+RDIR = ./src/ravencode
 
 OPT = -g
 CCflags = -std=c++17 $(OPT) -D_mingw_
 
 # sources
 OBJ_starter = \
-	$(ODIR)/main.o 
+	$(ODIR)/main.o \
+	$(ODIR)/cRunWatch.o 
 
 ### COMPILE
+
+$(ODIR)/cRunWatch.o : ./src/ravencode/cRunWatch.cpp
+	g++  $(CCflags) \
+	-c -o $@ $< $(INCS)
 
 $(ODIR)/%.o: %.cpp  
 	g++  $(CCflags) \
