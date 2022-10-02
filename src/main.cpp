@@ -7,17 +7,33 @@
 #include <time.h> /* time */
 #include "cRunWatch.h"
 
+#define DEBUG
+
 class cUniversity
 {
 public:
     int mySlotCount;
-    // int mySlotFilledCount;
     std::vector<bool> myEligibleStudent;
     std::vector<int> myAssigned;
-    int myPopularity; // number of eligible studemts
+    int myPopularity; // number of eligible students
+    int myID;
+    static int myLastID;
 
+    cUniversity()
+    {
+        myID = ++myLastID;
+    }
+    /// @brief CTOR
+    /// @param i ID number
+    /// @param s Slot count
+    cUniversity(int i, int s, int studentCount)
+        : myID(i), mySlotCount(s)
+    {
+        myEligibleStudent.resize(studentCount);
+    }
     bool isfeasible();
-    bool isRoom();
+    bool isRoom() const;
+    int room() const;
     bool isEligible(int s);
 };
 
@@ -27,17 +43,31 @@ class cSolution
 {
 public:
     void generate();
-    void file();
+    void read(const std::string &fname);
+
+    void fileWrite();
+
     bool isfeasible();
-    void AssignStudent2LeastPopular();
-    void makeRoom();
+
+    void AssignStudent2LeastPopular(); // step 1
+
+    void AssignEligible(); // step 2
+
+    void makeRoom(); // step 3
+
+    int room() const;
     int studentCount();
-    bool isRoom();
+    bool isRoom() const;
 
 private:
     std::vector<cUniversity> myUniversity;
     std::vector<int> myUnassigned;
+
+    std::string emptySlotsText();
+    std::string eligibleForText(int studentIndex);
 };
+
+int cUniversity::myLastID = -1;
 
 bool cUniversity::isfeasible()
 {
@@ -50,23 +80,28 @@ bool cUniversity::isfeasible()
     return true;
 }
 
-bool cUniversity::isRoom()
+bool cUniversity::isRoom() const
 {
-    return (mySlotCount > myAssigned.size());
+    return (room() > 0);
+}
+int cUniversity::room() const
+{
+    return mySlotCount - myAssigned.size();
 }
 bool cUniversity::isEligible(int s)
 {
+    if (s < 0)
+        return false;
     return myEligibleStudent[s];
 }
 
 void cSolution::generate()
 {
     int uniCount = 5;
-    int avSlot = 5000;
+    int avSlot = 5000000;
 
     // create enough students to usually fill all the slots
-    int studCount = avSlot * uniCount * 1.0;
-
+    int studCount = avSlot * uniCount * 1.2;
 
     srand(time(NULL));
 
@@ -84,15 +119,99 @@ void cSolution::generate()
     // Every student is eligible for 1 or 2 universities
     for (int s = 0; s < studCount; s++)
     {
-        myUniversity[rand()%uniCount].myEligibleStudent[s] = true;
-        myUniversity[rand()%uniCount].myEligibleStudent[s] = true;
+        myUniversity[rand() % uniCount].myEligibleStudent[s] = true;
+        myUniversity[rand() % uniCount].myEligibleStudent[s] = true;
+        myUniversity[rand() % uniCount].myEligibleStudent[s] = true;
     }
 
     std::cout << "random problem generated with "
-        << slotCount << " university slots and "
-        << studCount << " students\n";
+              << slotCount << " university slots and "
+              << studCount << " students\n";
 }
-void cSolution::file()
+
+std::vector<std::string> ParseSpaceDelimited(
+    const std::string &l)
+{
+    std::vector<std::string> token;
+    std::stringstream sst(l);
+    std::string a;
+    while (getline(sst, a, ' '))
+        token.push_back(a);
+
+    token.erase(
+        remove_if(
+            token.begin(),
+            token.end(),
+            [](std::string t)
+            {
+                return (t.empty());
+            }),
+        token.end());
+
+    return token;
+}
+
+void cSolution::read(const std::string &fname)
+{
+
+    std::ifstream ifs(fname);
+    if (!ifs.is_open())
+        throw std::runtime_error(
+            "Cannot read " + fname);
+
+    int countStudents;
+    std::string line;
+    try
+    {
+        while (getline(ifs, line))
+        {
+            auto vt = ParseSpaceDelimited(line);
+
+            switch (vt[0][0])
+            {
+            case 'C':
+                countStudents = atoi(vt[1].c_str());
+                break;
+
+            case 'U':
+                if (vt.size() < 3)
+                    throw 1;
+                myUniversity.push_back(
+                    cUniversity(
+                        atoi(vt[1].c_str()),
+                        atoi(vt[2].c_str()),
+                        countStudents));
+                break;
+            case 'S':
+            {
+                int s = atoi(vt[1].c_str());
+                for (int k = 2; k < vt.size(); k++)
+                {
+                    int e = atoi(vt[k].c_str());
+                    for (auto &u : myUniversity)
+                        if (u.myID == e)
+                        {
+                            u.myEligibleStudent[s] = true;
+                            break;
+                        }
+                }
+            }
+            break;
+
+            default:
+                throw 2;
+            }
+        }
+    }
+    catch (...)
+    {
+        throw std::runtime_error(
+            "Bad input line " + line);
+    }
+    std::cout << emptySlotsText();
+    std::cout << studentCount() << " students\n";
+}
+void cSolution::fileWrite()
 {
     std::ofstream ofs("data.txt");
     for (int k = 0; k < myUniversity.size(); k++)
@@ -110,6 +229,8 @@ void cSolution::file()
 }
 void cSolution::AssignStudent2LeastPopular()
 {
+    raven::set::cRunWatch aWatcher("AssignStudent2LeastPopular");
+
     // order universities in imcreasing popularity
     std::sort(
         myUniversity.begin(), myUniversity.end(),
@@ -143,28 +264,87 @@ void cSolution::AssignStudent2LeastPopular()
     {
         std::cout << studentCount() - myUnassigned.size() << " of " << studentCount()
                   << " students assigned by hueristic\n";
-        // for (auto &u : myUniversity)
-        // {
-        //     std::cout << u.mySlotCount << " slots filled with ";
-        //     for (int s : u.myAssigned)
-        //         std::cout << s << " ";
-        //     std::cout << "\n";
-        // }
+        std::cout << emptySlotsText();
+        for (auto &u : myUniversity)
+        {
+            // for (int s : u.myAssigned)
+            //     std::cout << s << " ";
+            // std::cout << "\n";
+        }
     }
 }
 
-bool cSolution::isRoom()
+std::string cSolution::emptySlotsText()
 {
+    std::stringstream ss;
     for (auto &u : myUniversity)
     {
-        if (u.isRoom())
-            return true;
+        ss << u.myID << " "
+           << u.room() << " empty slots\n";
     }
-    return false;
+    return ss.str();
+}
+std::string cSolution::eligibleForText(int studentIndex)
+{
+    std::stringstream ss;
+    for (auto &u : myUniversity)
+    {
+        if (u.isEligible(studentIndex))
+            ss << u.myID << " ";
+    }
+    return ss.str();
+}
+
+bool cSolution::isRoom() const
+{
+    return (room() > 0);
+}
+int cSolution::room() const
+{
+    int total = 0;
+    for (auto &u : myUniversity)
+    {
+        total += u.room();
+    }
+    return total;
+}
+
+void cSolution::AssignEligible()
+{
+    raven::set::cRunWatch aWatcher("AssignEligible");
+
+    if (!myUnassigned.size())
+        return;
+    if (!isRoom())
+    {
+        std::cout << "All slots filled\n";
+        return;
+    }
+    int count = 0;
+    for (auto &u : myUniversity)
+    {
+        if (!u.isRoom())
+            continue;
+
+        // loop over unassigned students
+        for (auto &s : myUnassigned)
+        {
+            if (u.isEligible(s))
+            {
+                u.myAssigned.push_back(s);
+                s = -1;
+                count++;
+                if (!u.isRoom())
+                    break;
+            }
+        }
+    }
+    std::cout << count << " students assigned by AssignEligible\n";
 }
 
 void cSolution::makeRoom()
 {
+    raven::set::cRunWatch aWatcher("makeRoom");
     if (!myUnassigned.size())
         return;
     if (!isRoom())
@@ -175,34 +355,49 @@ void cSolution::makeRoom()
 
     int count = 0;
 
+    // loop over unassigned students
     for (auto s : myUnassigned)
     {
         bool success = false;
         for (auto &u : myUniversity)
         {
+            // std::cout << "student  " << s
+            //     << " eligible for " << eligibleForText(s) << "\n";
+
             if (u.isEligible(s))
             {
                 // find a moveable student
-                for (int m : u.myAssigned)
+                for (int im = 0; im > u.myAssigned.size(); im++)
                 {
-                    for (auto &u2 : myUniversity)
+                    int m = u.myAssigned[im];
+
+                    // std::cout << "student  " << m
+                    //           << " eligible for " << eligibleForText(m) << "\n";
+
+                    for (int iu2 = 0; iu2 < myUniversity.size(); iu2++)
                     {
-                        if (u2.isRoom() &&
-                            u2.isEligible(m))
+                        if (myUniversity[iu2].isRoom() &&
+                            myUniversity[iu2].isEligible(m))
                         {
                             // student m can be moved from u to u2
-                            u.myAssigned.erase(
-                                std::find(
-                                    u.myAssigned.begin(),
-                                    u.myAssigned.end(),
-                                    m));
-                            u2.myAssigned.push_back(m);
+                            myUniversity[iu2].myAssigned.push_back(m);
 
                             // replace m with s
-                            u.myAssigned.push_back(s);
+                            u.myAssigned[im] = s;
 
                             count++;
                             success = true;
+#ifdef DEBUG
+                            std::cout << "makeRoom moved " << m
+                                      << " from " << u.myID
+                                      << " to " << myUniversity[iu2].myID << "\n";
+#endif
+                            if (!room())
+                            {
+                                std::cout << count << " students assigned by MakeRoom\n";
+                                return;
+                            }
+
                             break;
                         }
                     }
@@ -213,21 +408,8 @@ void cSolution::makeRoom()
             if (success)
                 break;
         }
-        // if (!success)
-        // {
-        //     // std::cout << "cannot find a place for student " << s
-        //     //           << " who is eligible for ";
-        //     // for (int k = 0; k < myUniversity.size(); k++)
-        //     //     if (myUniversity[k].isEligible(s))
-        //     //         std::cout << k << " ";
-        //     // std::cout << "\n";
-        // }
-        // else
-        // {
-        //     std::cout << "student " << s << " assigned by making room\n";
-        // }
     }
-    std::cout << count << " sudents assigned by MakeRoom\n";
+    std::cout << count << " students assigned by MakeRoom\n";
 }
 
 bool cSolution::isfeasible()
@@ -264,23 +446,26 @@ main()
 
     cSolution S;
     S.generate();
-    S.file();
+    S.fileWrite();
+    //S.read("data2.txt");
 
     raven::set::cRunWatch::Start();
     {
         raven::set::cRunWatch aWatcher("Assign");
-    if (!S.isfeasible())
-    {
-        std::cout << "Not feasible\n";
-        return 1;
-    }
-    S.AssignStudent2LeastPopular();
+        if (!S.isfeasible())
+        {
+            std::cout << "Not feasible\n";
+            return 1;
+        }
+        S.AssignStudent2LeastPopular();
 
-    S.makeRoom();
+        S.makeRoom();
 
-    if( ! S.isRoom() )
-        std::cout << "SUCCESS - all slots filled\n";
+        if (!S.isRoom())
+            std::cout << "SUCCESS - all slots filled\n";
 
+        else
+            std::cout << S.room() << " slots unfilled\n";
     }
 
     raven::set::cRunWatch::Report();

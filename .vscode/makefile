@@ -21,7 +21,7 @@ static_link_flags = -static-libstdc++ -static-libgcc -static
 ODIR = ./.vscode/obj
 RDIR = ./src/ravencode
 
-OPT = -g
+OPT = -O2
 CCflags = -std=c++17 $(OPT) -D_mingw_
 
 # sources
@@ -39,9 +39,9 @@ $(ODIR)/%.o: %.cpp
 	g++  $(CCflags) \
 	-c -o $@ $< $(INCS)
 
-starter: $(OBJ_starter)
+assign: $(OBJ_starter)
 	g++ $(OPT) \
-	-o bin/starter.exe $^  \
+	-o bin/assign.exe $^  \
 	$(static_link_flags) $(LIBS)
 
 .PHONY: clean
